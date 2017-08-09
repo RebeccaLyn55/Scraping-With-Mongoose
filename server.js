@@ -29,8 +29,8 @@ app.use(bodyParser.urlencoded({
 app.use(express.static("public"));
 
 // Database configuration with mongoose
-mongoose.connect("mongodb://heroku_rfrh76l3:srdtsls44c4669h0c5cav2khf8@ds161640.mlab.com:61640/heroku_rfrh76l3");
-//mongoose.connect("mongodb://localhost/week18day3mongoose");
+//mongoose.connect("mongodb://heroku_rfrh76l3:srdtsls44c4669h0c5cav2khf8@ds161640.mlab.com:61640/heroku_rfrh76l3");
+mongoose.connect("mongodb://localhost/week18day3mongoose");
 var db = mongoose.connection;
 
 // Show any mongoose errors
@@ -50,30 +50,35 @@ db.once("open", function() {
 // A GET request to scrape the echojs website
 app.get("/scrape", function(req, res) {
   // First, we grab the body of the html with request
- request("https://www.reddit.com/r/webdev", function(error, response, html) {
+  request("http://www.echojs.com/", function(error, response, html) {
+    // Then, we load that into cheerio and save it to $ for a shorthand selector
+    var $ = cheerio.load(html);
+    // Now, we grab every h2 within an article tag, and do the following:
+    $("article h2").each(function(i, element) {
 
-  // Load the HTML into cheerio and save it to a variable
-  // '$' becomes a shorthand for cheerio's selector commands, much like jQuery's '$'
-  var $ = cheerio.load(html);
+      // Save an empty result object
+      var result = {};
 
-  // An empty array to save the data that we'll scrape
-  var results = [];
+      // Add the text and href of every link, and save them as properties of the result object
+      result.title = $(this).children("a").text();
+      result.link = $(this).children("a").attr("href");
 
-  // With cheerio, find each p-tag with the "title" class
-  // (i: iterator. element: the current element)
-  $("p.title").each(function(i, element) {
+      // Using our Article model, create a new entry
+      // This effectively passes the result object to the entry (and the title and link)
+      var entry = new Article(result);
 
-    // Save the text of the element in a "title" variable
-    var title = $(element).text();
+      // Now, save that entry to the db
+      entry.save(function(err, doc) {
+        // Log any errors
+        if (err) {
+          console.log(err);
+        }
+        // Or log the doc
+        else {
+          console.log(doc);
+        }
+      });
 
-    // In the currently selected element, look at its child elements (i.e., its a-tags),
-    // then save the values for any "href" attributes that the child elements may have
-    var link = $(element).children().attr("href");
-
-    // Save these results in an object that we'll push into the results array we defined earlier
-    results.push({
-      title: title,
-      link: link
     });
   });
   // Tell the browser that we finished scraping the text
